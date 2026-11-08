@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador dels Esglaons i Fibonacci PCMAT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+
+    .staircase-wrapper {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background-color: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .stairs-baseline {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      height: 3px;
+      background-color: #cbd5e1;
+      border-radius: 2px;
+      z-index: 1;
+    }
+
+    .stairs-container {
+      display: flex;
+      align-items: flex-end;
+      height: 100%;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .stair-step {
+      flex: 1;
+      background: linear-gradient(to top, #a7f3d0, #6ee7b7);
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 2px;
+      color: #064e3b;
+      font-weight: bold;
+      position: relative;
+      transition: all 0.3s ease;
+      border: 1px solid #059669;
+      border-bottom: none;
+    }
+
+    /* Casella inicial d'espera sobre la línia base (sense caixa ni text) */
+    .stair-step.step-zero {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .stair-step.active {
+      background: linear-gradient(to top, #34d399, #10b981);
+      border-color: #047857;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .stair-step.target {
+      border: 2px solid #059669;
+      background: linear-gradient(to top, #6ee7b7, #34d399);
+    }
+
+    .avatar-robot {
+      font-size: 2rem;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 10;
+      filter: drop-shadow(0 4px 3px rgba(0,0,0,0.15));
+    }
+
+    .step-num-badge {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 9999px;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: #064e3b;
+    }
+
+    /* Trajectòries SVG */
+    .svg-arcs {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Colors diferenciats per salts */
+    /* Salt +1: Verd (#059669) */
+    .arc-path-current-1 {
+      stroke: #059669;
+      stroke-width: 3.5;
+      fill: none;
+      stroke-dasharray: 6;
+      animation: strokeDraw 0.4s ease-out forwards;
+    }
+    .arc-path-past-1 {
+      stroke: #10b981;
+      stroke-width: 2.5;
+      fill: none;
+      opacity: 0.85;
+    }
+    .arc-path-memory-1 {
+      stroke: #059669;
+      stroke-width: 2.2;
+      fill: none;
+      stroke-dasharray: 4,4;
+      opacity: 0.55;
+    }
+
+    /* Salt +2: Àmbar (#d97706) */
+    .arc-path-current-2 {
+      stroke: #d97706;
+      stroke-width: 3.5;
+      fill: none;
+      stroke-dasharray: 6;
+      animation: strokeDraw 0.4s ease-out forwards;
+    }
+    .arc-path-past-2 {
+      stroke: #f59e0b;
+      stroke-width: 2.5;
+      fill: none;
+      opacity: 0.85;
+    }
+    .arc-path-memory-2 {
+      stroke: #d97706;
+      stroke-width: 2.2;
+      fill: none;
+      stroke-dasharray: 4,4;
+      opacity: 0.55;
+    }
+
+    @keyframes strokeDraw {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Botons */
+    .btn-jump-1 {
+      background-color: #059669;
+      color: white;
+      transition: all 0.15s ease;
+    }
+    .btn-jump-1:hover:not(:disabled) {
+      background-color: #047857;
+      transform: translateY(-2px);
+    }
+
+    .btn-jump-2 {
+      background-color: #d97706;
+      color: white;
+      transition: all 0.15s ease;
+    }
+    .btn-jump-2:hover:not(:disabled) {
+      background-color: #b45309;
+      transform: translateY(-2px);
+    }
+
+    .btn-action {
+      background-color: #e2e8f0;
+      color: #334155;
+    }
+    .btn-action:hover:not(:disabled) {
+      background-color: #cbd5e1;
+    }
+
+    .path-card {
+      background: white;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .path-card.unlocked {
+      border-color: #10b981;
+      background-color: #f0fdf4;
+      box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1);
+    }
+
+    .badge-jump-1 {
+      background-color: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .badge-jump-2 {
+      background-color: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .status-msg {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.2s;
+    }
+  </style>
+</head>
+<body class="p-3 sm:p-6 max-w-7xl mx-auto">
+
+  <!-- CAPÇALERA -->
+  <header class="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-5 rounded-2xl shadow-lg mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-3xl">🤖🪜</span>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Simulador dels Esglaons i Fibonacci</h1>
+      </div>
+      <p class="text-emerald-100 text-sm mt-1">Explora les maneres de pujar l'escala fent salts de 1 🦶 o 2 🪜 esglaons (Mentoria PCMAT)</p>
+    </div>
+  </header>
+
+  <!-- NAVEGACIÓ PER PESTANYES -->
+  <nav class="flex gap-2 mb-6 border-b border-slate-200 pb-2">
+    <button onclick="switchTab('tab1')" id="tab1Btn" class="px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm bg-emerald-600 text-white">
+      🏃 Simulador d'Escales (N=1..6)
+    </button>
+    <button onclick="switchTab('tab2')" id="tab2Btn" class="px-5 py-2.5 rounded-xl text-sm font-bold transition text-slate-600 hover:bg-slate-200">
+      🪜 Escales Llargues (N=7..12)
+    </button>
+  </nav>
+
+  <!-- PESTANYA 1: SIMULADOR PRINCIPAL (N=1..6) -->
+  <div id="tab1Content">
+    <!-- SELECCIÓ D'ESCALA N -->
+    <section class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="text-emerald-700 font-bold text-lg">Tria l'escala (N esglaons):</span>
+          <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200" id="nSelectorGroup">
+            <button onclick="selectN(1)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=1</button>
+            <button onclick="selectN(2)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=2</button>
+            <button onclick="selectN(3)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=3</button>
+            <button onclick="selectN(4)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=4</button>
+            <button onclick="selectN(5)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=5</button>
+            <button onclick="selectN(6)" class="n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition">N=6</button>
+          </div>
+        </div>
+        <div class="text-xs sm:text-sm text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+          📌 <strong>N</strong> és el nombre total d'esglaons a pujar.
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL PRINCIPAL -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+      
+      <!-- SIMULADOR -->
+      <section class="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <span>🏃 Simulador</span>
+                <span class="text-xs font-normal text-slate-500">(N = <span id="displayNHeader">3</span>)</span>
+              </h2>
+              <span id="stepCounterBadge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+                Esglaó: 0 / 3
+              </span>
+            </div>
+
+            <!-- CONTROLS DE TRACES DINS EL SIMULADOR -->
+            <div class="flex items-center gap-2">
+              <button onclick="toggleMemoryArcs()" id="memoryToggleBtn" class="bg-emerald-800 hover:bg-emerald-900 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-emerald-600 transition shadow-sm">
+                <span id="memoryIcon">🧠</span> <span id="memoryText">Acumular camins: ACTIU</span>
+              </button>
+              <button onclick="clearNMemory()" class="bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-200 transition">
+                <span>🧹</span> Neteja
+              </button>
+            </div>
+          </div>
+
+          <!-- CONTENIDOR DE L'ESCALA -->
+          <div class="staircase-wrapper">
+            <div class="stairs-baseline"></div>
+            <svg class="svg-arcs" id="svgArcs"></svg>
+            <div class="stairs-container" id="stairsContainer"></div>
+          </div>
+
+          <!-- MISSATGE D'ESTAT -->
+          <div id="statusBox" class="status-msg bg-slate-50 border border-slate-200 text-slate-600 mt-4 text-sm">
+            Fes un pas per començar a pujar l'escala!
+          </div>
+        </div>
+
+        <!-- BOTONS DE CONTROL -->
+        <div class="mt-5 grid grid-cols-3 gap-3">
+          <button onclick="doJump(1)" id="btnJump1" class="btn-jump-1 py-3 px-4 rounded-xl font-bold text-base shadow flex items-center justify-center gap-2">
+            <span>🦶 +1</span>
+          </button>
+          <button onclick="doJump(2)" id="btnJump2" class="btn-jump-2 py-3 px-4 rounded-xl font-bold text-base shadow flex items-center justify-center gap-2">
+            <span>🪜 +2</span>
+          </button>
+          <button onclick="returnToBase()" class="btn-action py-3 px-4 rounded-xl font-bold text-base border border-slate-300 flex items-center justify-center gap-2">
+            <span>🏠 Torna a la base</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- CAMINS TROBATS -->
+      <section class="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <span>📚 Camins Trobats</span>
+            </h2>
+            <span id="albumProgressBadge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+              0 / 3 Camins
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mb-4">
+            Descobreix tots els camins possibles fins al darrer esglaó:
+          </p>
+
+          <!-- LLISTA DE CAMINS -->
+          <div id="albumGrid" class="space-y-2 max-h-[310px] overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+          <span>Total de camins possibles: <strong id="totalPossibleText">3</strong></span>
+          <button onclick="clearNMemory()" class="text-slate-500 hover:text-rose-600 font-semibold underline">Neteja tots els registres de N</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- TAULA DE REGISTRE DE RECORREGUTS (PCMAT) -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span>📊 Taula de Registre de Recorreguts</span>
+        </h2>
+        <span class="text-xs text-slate-500 font-medium bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+          S'actualitza automàticament a mesura que descobreixes camins
+        </span>
+      </div>
+      <p class="text-xs text-slate-600 mb-4">
+        Organitza i compta les maneres diferents de pujar per a cada quantitat d'esglaons:
+      </p>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-slate-700 border-collapse border border-slate-200 rounded-xl overflow-hidden">
+          <thead class="text-xs text-emerald-900 uppercase bg-emerald-100/70 border-b border-slate-200">
+            <tr>
+              <th scope="col" class="px-4 py-3 font-extrabold w-1/4 text-center border-r border-slate-200">Quantitat d'esglaons</th>
+              <th scope="col" class="px-4 py-3 font-extrabold w-2/4 border-r border-slate-200">Maneres diferents de pujar</th>
+              <th scope="col" class="px-4 py-3 font-extrabold w-1/4 text-center">Nº total de maneres</th>
+            </tr>
+          </thead>
+          <tbody id="recordTableBody" class="divide-y divide-slate-200">
+            <!-- Emplenat dinàmicament per JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LA GRAN CONCLUSIÓ MATEMÀTICA (FIBONACCI) - DESTACAT AMB FORMAT VISUAL -->
+    <section class="bg-gradient-to-br from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border-4 border-amber-300 mb-8 relative overflow-hidden">
+      <!-- Badge de capçalera -->
+      <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div class="flex items-center gap-3">
+          <span class="text-4xl bg-amber-400/20 p-2.5 rounded-2xl border border-amber-300/40">🏆</span>
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-amber-300">
+              LA GRAN CONCLUSIÓ MATEMÀTICA
+            </h2>
+            <p class="text-emerald-100 text-sm font-semibold mt-0.5">
+              🌀 El secret de l'escala i la Successió de Fibonacci
+            </p>
+          </div>
+        </div>
+        <span class="bg-amber-400 text-amber-950 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow">
+          Concepte Clau PCMAT
+        </span>
+      </div>
+
+      <!-- Passos explicatius en targetes visuals -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- Pas 1 -->
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold text-amber-300 uppercase tracking-wider block mb-1">1. Quin és l'últim pas del robot? 🤖</span>
+            <p class="text-sm font-medium leading-relaxed text-emerald-50">
+              Per arribar a qualsevol esglaó <strong>N</strong>, el robot només pot haver vingut de dos llocs:
+            </p>
+            <div class="mt-3 space-y-2">
+              <div class="bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-500/30 flex items-center gap-2 text-xs sm:text-sm font-bold">
+                <span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs">🦶 +1</span>
+                <span>Des de l'esglaó anterior (N - 1)</span>
+              </div>
+              <div class="bg-amber-950/60 p-2.5 rounded-xl border border-amber-500/30 flex items-center gap-2 text-xs sm:text-sm font-bold">
+                <span class="bg-amber-500 text-white px-2 py-0.5 rounded text-xs">🪜 +2</span>
+                <span>Des de dos esglaons enrere (N - 2)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pas 2: Regla de la suma -->
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold text-amber-300 uppercase tracking-wider block mb-1">2. La Regla de la Suma Màgica ➕</span>
+            <p class="text-sm font-medium text-emerald-50 mb-3">
+              Per saber quants camins té un esglaó, <strong>sumem els camins dels dos esglaons anteriors!</strong>
+            </p>
+          </div>
+          <div class="bg-white text-emerald-950 rounded-2xl p-3 shadow-lg text-center border-2 border-amber-400">
+            <span class="text-xs font-bold text-slate-500 uppercase block">Fórmula màgica</span>
+            <div class="text-lg sm:text-2xl font-black text-emerald-800 tracking-tight my-1">
+              Camins(N) = Camins(N - 1) + Camins(N - 2)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pas 3: La seqüència de Fibonacci visual -->
+      <div class="bg-emerald-950/70 backdrop-blur-md rounded-2xl p-5 border border-emerald-400/40">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-black text-amber-300 flex items-center gap-2">
+              <span>🌀 La Successió de Fibonacci</span>
+            </h3>
+            <p class="text-xs text-emerald-200 mt-1">
+              Sumant els 2 darrers nombres s'obté el següent: (1+2=<strong>3</strong>, 2+3=<strong>5</strong>, 3+5=<strong>8</strong>...)
+            </p>
+          </div>
+          
+          <!-- Bloquets de la successió -->
+          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center">
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">1</div>
+            <span class="text-amber-300 font-bold text-sm">➔</span>
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">2</div>
+            <span class="text-amber-300 font-bold text-sm">➔</span>
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">3</div>
+            <span class="text-amber-300 font-bold text-sm">➔</span>
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">5</div>
+            <span class="text-amber-300 font-bold text-sm">➔</span>
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">8</div>
+            <span class="text-amber-300 font-bold text-sm">➔</span>
+            <div class="bg-amber-400 text-amber-950 font-black text-lg sm:text-xl w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white">13</div>
+            <span class="text-amber-300 font-extrabold text-lg">…</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- PESTANYA 2: ESCALES LLARGUES (N=7..12) -->
+  <div id="tab2Content" class="hidden">
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+      
+      <!-- VISUALITZADOR I SIMULADOR ESCALES LLARGUES -->
+      <section class="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <span>🪜 Escales Llargues</span>
+                <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full" id="longNBadge">N = 8</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-1">Explora totes les possibilitats per a escales de 7 a 12 esglaons.</p>
+            </div>
+            
+            <div class="flex items-center gap-2 flex-wrap">
+              <label for="longNSelect" class="text-xs font-bold text-slate-600">Esglaons (N):</label>
+              <select id="longNSelect" onchange="initLongStairs()" class="bg-slate-100 border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700">
+                <option value="7">N = 7</option>
+                <option value="8" selected>N = 8</option>
+                <option value="9">N = 9</option>
+                <option value="10">N = 10</option>
+                <option value="11">N = 11</option>
+                <option value="12">N = 12</option>
+              </select>
+              
+              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <button onclick="setLongSpeed(800)" id="spdSlow" class="px-2 py-1 text-xs font-bold rounded bg-white shadow-sm">🐢</button>
+                <button onclick="setLongSpeed(400)" id="spdNorm" class="px-2 py-1 text-xs font-bold rounded bg-emerald-600 text-white">🏃</button>
+                <button onclick="setLongSpeed(150)" id="spdFast" class="px-2 py-1 text-xs font-bold rounded bg-white shadow-sm">⚡</button>
+              </div>
+
+              <button onclick="toggleLongAutoPlay()" id="btnLongPlay" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-bold shadow flex items-center gap-1.5 transition">
+                <span id="longPlayIcon">▶️</span> <span id="longPlayText">Simula</span>
+              </button>
+              <button onclick="resetLongStairs()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold transition" title="Reinicia">
+                🔄
+              </button>
+            </div>
+          </div>
+
+          <!-- VISUALITZADOR ESCALES LLARGUES -->
+          <div class="staircase-wrapper relative" style="height: 260px;">
+            <div class="stairs-baseline"></div>
+            <svg class="svg-arcs" id="svgLongArcs"></svg>
+            <div class="stairs-container" id="longStairsContainer"></div>
+          </div>
+
+          <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <span class="font-medium text-slate-600">Estat: <strong id="longStatusText" class="text-slate-800">Robot preparat a la línia base.</strong></span>
+            <span class="font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200" id="longFibCount">
+              Total camins possibles: 34
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- FORMAT CAMÍ: LLISTAT DE TOTS ELS CAMINS POSSIBLES DE N -->
+      <section class="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <span>🗺️ Tots els Camins (N = <span id="longNDisplayPath">8</span>)</span>
+            </h2>
+            <span id="longPathsBadge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+              34 Camins
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mb-3">
+            Clica sobre qualsevol camí per veure la seva trajectòria dibuixada a l'escala:
+          </p>
+
+          <!-- LLISTA DE CAMINS -->
+          <div id="longPathsGrid" class="space-y-2 max-h-[320px] overflow-y-auto pr-1"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FORMAT TAULA DOBLE ENTRADA (N=7..12) -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-8">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span>📊 Successió de Fibonacci en les Escales (N = 1..12)</span>
+        </h2>
+        <span class="text-xs text-slate-500 font-medium bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+          Nombre d'esglaons i total de camins
+        </span>
+      </div>
+      <p class="text-xs text-slate-600 mb-4">
+        Observa com el nombre total de camins de cada escala s'obté sumant els camins de les dues escales anteriors:
+      </p>
+
+      <div class="overflow-x-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
+        <table class="w-full text-center border-collapse min-w-[700px]">
+          <thead>
+            <tr class="bg-emerald-700 text-white text-xs sm:text-sm font-bold">
+              <th class="p-3 rounded-l-lg bg-emerald-800 text-emerald-100 font-extrabold whitespace-nowrap">Nombre d'esglaons (N)</th>
+              <th class="p-3 border-r border-emerald-600">1</th>
+              <th class="p-3 border-r border-emerald-600">2</th>
+              <th class="p-3 border-r border-emerald-600">3</th>
+              <th class="p-3 border-r border-emerald-600">4</th>
+              <th class="p-3 border-r border-emerald-600">5</th>
+              <th class="p-3 border-r border-emerald-600">6</th>
+              <th class="p-3 border-r border-emerald-600">7</th>
+              <th class="p-3 border-r border-emerald-600">8</th>
+              <th class="p-3 border-r border-emerald-600">9</th>
+              <th class="p-3 border-r border-emerald-600">10</th>
+              <th class="p-3 border-r border-emerald-600">11</th>
+              <th class="p-3 rounded-r-lg">12</th>
+            </tr>
+          </thead>
+          <tbody id="longRecordTableBody" class="text-slate-800 font-bold text-sm sm:text-base">
+            <!-- Emplenat dinàmicament per JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="text-center py-6 border-t border-slate-200 text-xs text-slate-500 font-medium">
+    Creat amb IA per Aurora Pelejà - Mentoria PCMAT
+  </footer>
+
+  <script>
+    let currentN = 3;
+    let currentStep = 0;
+    let currentPath = [];
+    let showMemoryArcs = true;
+    let activeSolutions = {}; // Guarda índexs amb solució desvetllada
+
+    let userPaths = {
+      1: [], 2: [], 3: [], 4: [], 5: [], 6: []
+    };
+
+    function switchTab(tabName) {
+      const tab1Btn = document.getElementById('tab1Btn');
+      const tab2Btn = document.getElementById('tab2Btn');
+      const tab1Content = document.getElementById('tab1Content');
+      const tab2Content = document.getElementById('tab2Content');
+
+      if (tabName === 'tab1') {
+        tab1Content.classList.remove('hidden');
+        tab2Content.classList.add('hidden');
+        tab1Btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm bg-emerald-600 text-white';
+        tab2Btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition text-slate-600 hover:bg-slate-200';
+        setTimeout(renderStairs, 50);
+      } else {
+        tab1Content.classList.add('hidden');
+        tab2Content.classList.remove('hidden');
+        tab2Btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm bg-emerald-600 text-white';
+        tab1Btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition text-slate-600 hover:bg-slate-200';
+        setTimeout(renderLongStairs, 50);
+      }
+    }
+
+    function toggleMemoryArcs() {
+      showMemoryArcs = !showMemoryArcs;
+      const btn = document.getElementById('memoryToggleBtn');
+      const icon = document.getElementById('memoryIcon');
+      const text = document.getElementById('memoryText');
+      
+      if (showMemoryArcs) {
+        btn.className = 'bg-emerald-800 hover:bg-emerald-900 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-emerald-600 transition shadow-sm';
+        icon.textContent = '🧠';
+        text.textContent = 'Acumular camins: ACTIU';
+      } else {
+        btn.className = 'bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-slate-300 transition';
+        icon.textContent = '👁️‍🗨️';
+        text.textContent = 'Només camí actual';
+      }
+      renderSvgArcs();
+    }
+
+    function getTargetPaths(n) {
+      const results = [];
+      function findPaths(rem, current) {
+        if (rem === 0) {
+          results.push([...current]);
+          return;
+        }
+        if (rem >= 1) {
+          current.push(1);
+          findPaths(rem - 1, current);
+          current.pop();
+        }
+        if (rem >= 2) {
+          current.push(2);
+          findPaths(rem - 2, current);
+          current.pop();
+        }
+      }
+      findPaths(n, []);
+      return results;
+    }
+
+    function selectN(n) {
+      currentN = n;
+      currentStep = 0;
+      currentPath = [];
+      activeSolutions = {};
+      updateNSelectorUI();
+      renderStairs();
+      renderAlbumGrid();
+      renderTable();
+      updateStatusBox("Escala canviada a N = " + n + ". Fes un salt per començar!", "neutral");
+    }
+
+    function updateNSelectorUI() {
+      const btns = document.querySelectorAll('.n-btn');
+      btns.forEach((btn, idx) => {
+        const val = idx + 1;
+        if (val === currentN) {
+          btn.className = 'n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition bg-emerald-600 text-white shadow';
+        } else {
+          btn.className = 'n-btn px-3 py-1.5 rounded-lg text-sm font-bold transition bg-transparent text-slate-600 hover:bg-slate-200';
+        }
+      });
+      document.getElementById('displayNHeader').textContent = currentN;
+      document.getElementById('stepCounterBadge').textContent = `Esglaó: ${currentStep} / ${currentN}`;
+    }
+
+    function renderStairs() {
+      const container = document.getElementById('stairsContainer');
+      container.innerHTML = '';
+
+      // Posició inicial d'espera del robot (sobre la mateixa línia base)
+      const stepZero = document.createElement('div');
+      stepZero.className = 'stair-step step-zero';
+      stepZero.style.height = '0px';
+      if (currentStep === 0) {
+        stepZero.innerHTML = `<div class="avatar-robot" style="bottom: 4px; top: auto;">🤖</div>`;
+      }
+      container.appendChild(stepZero);
+
+      for (let i = 1; i <= currentN; i++) {
+        const step = document.createElement('div');
+        const heightPercent = 18 + (i / currentN) * 67;
+        step.style.height = `${heightPercent}%`;
+
+        let statusClass = '';
+        if (i === currentStep) statusClass = 'active';
+        if (i === currentN) statusClass += ' target';
+
+        step.className = `stair-step ${statusClass}`;
+        step.innerHTML = `<span class="step-num-badge">${i}</span>`;
+
+        if (i === currentN) {
+          step.innerHTML += `<span style="font-size:0.95rem;">🚩</span>`;
+        }
+
+        if (i === currentStep) {
+          step.innerHTML += `<div class="avatar-robot">🤖</div>`;
+        }
+
+        container.appendChild(step);
+      }
+
+      document.getElementById('stepCounterBadge').textContent = `Esglaó: ${currentStep} / ${currentN}`;
+      renderSvgArcs();
+    }
+
+    function renderSvgArcs() {
+      const svg = document.getElementById('svgArcs');
+      svg.innerHTML = '';
+      const container = document.getElementById('stairsContainer');
+      const rect = container.getBoundingClientRect();
+      const wrapperRect = document.querySelector('.staircase-wrapper').getBoundingClientRect();
+      if (rect.width === 0) return;
+
+      const totalH = wrapperRect.height;
+      const numCols = currentN + 1;
+
+      const getX = (stepIdx) => {
+        const stepW = rect.width / numCols;
+        return (stepIdx + 0.5) * stepW;
+      };
+
+      const getY = (stepIdx) => {
+        if (stepIdx === 0) return totalH - 16;
+        const hPercent = 18 + (stepIdx / currentN) * 67;
+        return totalH - 16 - (hPercent / 100 * (rect.height - 16));
+      };
+
+      if (showMemoryArcs) {
+        const saved = userPaths[currentN] || [];
+        saved.forEach((pathArr, pathIdx) => {
+          let accum = 0;
+          pathArr.forEach(stepVal => {
+            const fromStep = accum;
+            const toStep = accum + stepVal;
+            accum = toStep;
+
+            const x1 = getX(fromStep);
+            const y1 = getY(fromStep);
+            const x2 = getX(toStep);
+            const y2 = getY(toStep);
+
+            const cx = (x1 + x2) / 2;
+            const offset = (pathIdx % 3) * 5;
+            const cy = Math.max(10, Math.min(y1, y2) - (stepVal === 2 ? 34 + offset : 18 + offset));
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`);
+            path.setAttribute("class", `arc-path-memory-${stepVal}`);
+            svg.appendChild(path);
+          });
+        });
+      }
+
+      let accumStep = 0;
+      currentPath.forEach((stepVal, idx) => {
+        const fromStep = accumStep;
+        const toStep = accumStep + stepVal;
+        accumStep = toStep;
+
+        const x1 = getX(fromStep);
+        const y1 = getY(fromStep);
+        const x2 = getX(toStep);
+        const y2 = getY(toStep);
+
+        const cx = (x1 + x2) / 2;
+        const cy = Math.max(10, Math.min(y1, y2) - (stepVal === 2 ? 38 : 22));
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`);
+        
+        if (idx === currentPath.length - 1) {
+          path.setAttribute("class", `arc-path-current-${stepVal}`);
+        } else {
+          path.setAttribute("class", `arc-path-past-${stepVal}`);
+        }
+        svg.appendChild(path);
+      });
+    }
+
+    function doJump(stepSize) {
+      // Si el robot ja havia arribat al darrer esglaó, en fer un nou salt el tornem a la base per començar el nou camí
+      if (currentStep === currentN) {
+        currentStep = 0;
+        currentPath = [];
+      }
+
+      if (currentStep + stepSize > currentN) {
+        updateStatusBox(`⚠️ No pots fer un salt de +${stepSize}! Superaries la meta (N=${currentN}).`, "warning");
+        return;
+      }
+
+      currentStep += stepSize;
+      currentPath.push(stepSize);
+
+      renderStairs();
+
+      if (currentStep === currentN) {
+        const pathStr = currentPath.join(',');
+        const existing = userPaths[currentN] || [];
+        const alreadyFound = existing.some(p => p.join(',') === pathStr);
+
+        if (!alreadyFound) {
+          userPaths[currentN].push([...currentPath]);
+        }
+
+        renderAlbumGrid();
+        renderTable();
+        renderSvgArcs();
+
+        const formattedPath = currentPath.map(s => (s === 1 ? '🦶+1' : '🪜+2')).join(' ➔ ');
+        updateStatusBox(`🎉 FELICITATS! Has trobat un camí: [ ${formattedPath} ]. Clica "Torna a la base" per provar-ne un altre!`, "success");
+      } else {
+        updateStatusBox(`Robot a l'esglaó ${currentStep}. En queden ${currentN - currentStep}!`, "neutral");
+      }
+    }
+
+    function returnToBase() {
+      currentStep = 0;
+      currentPath = [];
+      renderStairs();
+      updateStatusBox("Robot de tornada a la base. Prova un altre camí!", "neutral");
+    }
+
+    function updateStatusBox(msg, type) {
+      const box = document.getElementById('statusBox');
+      box.innerHTML = msg;
+      if (type === "warning") {
+        box.className = "status-msg bg-amber-50 border border-amber-200 text-amber-800 text-sm";
+      } else if (type === "success") {
+        box.className = "status-msg bg-emerald-100 border border-emerald-300 text-emerald-900 text-sm font-bold shadow-sm";
+      } else {
+        box.className = "status-msg bg-slate-50 border border-slate-200 text-slate-600 text-sm";
+      }
+    }
+
+    function revealSolution(index) {
+      activeSolutions[index] = true;
+      renderAlbumGrid();
+    }
+
+    function renderAlbumGrid() {
+      const grid = document.getElementById('albumGrid');
+      grid.innerHTML = '';
+
+      const allPossible = getTargetPaths(currentN);
+      const saved = userPaths[currentN] || [];
+      const savedStrings = new Set(saved.map(p => p.join(',')));
+
+      document.getElementById('albumProgressBadge').textContent = `${saved.length} / ${allPossible.length} Camins`;
+      document.getElementById('totalPossibleText').textContent = allPossible.length;
+
+      allPossible.forEach((pathArr, index) => {
+        const pathKey = pathArr.join(',');
+        const isUnlocked = savedStrings.has(pathKey);
+        const isSolutionRevealed = !!activeSolutions[index];
+
+        const card = document.createElement('div');
+        card.className = `path-card ${isUnlocked ? 'unlocked' : (isSolutionRevealed ? 'border-amber-300 bg-amber-50' : '')}`;
+
+        const badgesHtml = pathArr.map(s => {
+          return s === 1 
+            ? `<span class="badge-jump-1 text-xs px-2 py-0.5 rounded-md font-bold">🦶 +1</span>` 
+            : `<span class="badge-jump-2 text-xs px-2 py-0.5 rounded-md font-bold">🪜 +2</span>`;
+        }).join('<span class="text-slate-300 text-xs font-bold mx-0.5">➔</span>');
+
+        if (isUnlocked) {
+          card.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-emerald-700">Camí ${index + 1}</span>
+              <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
+            </div>
+            <span class="text-emerald-600 font-bold text-xs">✓ Trobat</span>
+          `;
+        } else if (isSolutionRevealed) {
+          card.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-amber-700">Camí ${index + 1}</span>
+              <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
+            </div>
+            <span class="text-amber-600 font-bold text-xs">💡 Solució</span>
+          `;
+        } else {
+          card.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-400">Camí ${index + 1}</span>
+              <span class="text-xs font-medium text-slate-400 italic">🔒 Camí per descobrir</span>
+            </div>
+            <button onclick="revealSolution(${index})" class="text-[11px] text-amber-700 hover:text-amber-900 font-bold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 transition">
+              👁️ Solució
+            </button>
+          `;
+        }
+
+        grid.appendChild(card);
+      });
+    }
+
+    function clearNMemory() {
+      userPaths[currentN] = [];
+      activeSolutions = {};
+      renderAlbumGrid();
+      renderTable();
+      renderSvgArcs();
+      updateStatusBox(`Memòria i traces de N=${currentN} netejades.`, "neutral");
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('recordTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      for (let n = 1; n <= 6; n++) {
+        const allPossible = getTargetPaths(n);
+        const saved = userPaths[n] || [];
+
+        const tr = document.createElement('tr');
+        if (n === currentN) {
+          tr.className = 'bg-emerald-50/70 font-semibold';
+        } else {
+          tr.className = 'hover:bg-slate-50';
+        }
+
+        let pathsFormatted = '';
+        if (saved.length === 0) {
+          pathsFormatted = '<span class="text-slate-400 italic text-xs">Cap camí descobert encara</span>';
+        } else {
+          pathsFormatted = saved.map(p => {
+            return `<span class="inline-block bg-white border border-slate-300 text-slate-800 rounded px-2 py-0.5 text-xs font-mono font-bold mr-1.5 mb-1 shadow-sm">${p.map(s => s === 1 ? '1' : '2').join(' + ')}</span>`;
+          }).join('');
+        }
+
+        const isComplete = saved.length === allPossible.length;
+        const totalBadge = isComplete 
+          ? `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-300">${saved.length} / ${allPossible.length} ✓</span>`
+          : `<span class="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full border border-slate-200">${saved.length} / ${allPossible.length}</span>`;
+
+        tr.innerHTML = `
+          <td class="px-4 py-3 text-center font-bold text-slate-800 border-r border-slate-200">
+            N = ${n} ${n === currentN ? '<span class="text-xs text-emerald-600 font-extrabold block">(Actual)</span>' : ''}
+          </td>
+          <td class="px-4 py-3 border-r border-slate-200">${pathsFormatted}</td>
+          <td class="px-4 py-3 text-center">${totalBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // === ESCALES LLARGUES (N=7..12) ===
+    let longN = 8;
+    let longStep = 0;
+    let longPath = [];
+    let longTimer = null;
+    let longSpeed = 400;
+
+    function fibonacci(n) {
+      let a = 1, b = 1;
+      for (let i = 2; i <= n; i++) {
+        let c = a + b;
+        a = b;
+        b = c;
+      }
+      return b;
+    }
+
+    function setLongSpeed(spd) {
+      longSpeed = spd;
+      const btnSlow = document.getElementById('spdSlow');
+      const btnNorm = document.getElementById('spdNorm');
+      const btnFast = document.getElementById('spdFast');
+      if (btnSlow) btnSlow.className = `px-2 py-1 text-xs font-bold rounded ${spd === 800 ? 'bg-emerald-600 text-white' : 'bg-white shadow-sm'}`;
+      if (btnNorm) btnNorm.className = `px-2 py-1 text-xs font-bold rounded ${spd === 400 ? 'bg-emerald-600 text-white' : 'bg-white shadow-sm'}`;
+      if (btnFast) btnFast.className = `px-2 py-1 text-xs font-bold rounded ${spd === 150 ? 'bg-emerald-600 text-white' : 'bg-white shadow-sm'}`;
+    }
+
+    function updateLongPlayBtnUI(isPlaying) {
+      const icon = document.getElementById('longPlayIcon');
+      const text = document.getElementById('longPlayText');
+      if (icon) icon.textContent = isPlaying ? '⏸️' : '▶️';
+      if (text) text.textContent = isPlaying ? 'Pausa' : 'Simula';
+    }
+
+    function initLongStairs() {
+      const select = document.getElementById('longNSelect');
+      if (select) longN = parseInt(select.value, 10) || 8;
+      const nBadge = document.getElementById('longNBadge');
+      if (nBadge) nBadge.textContent = `N = ${longN}`;
+      const nDisplay = document.getElementById('longNDisplayPath');
+      if (nDisplay) nDisplay.textContent = longN;
+      
+      resetLongStairs();
+      renderLongPathsList();
+      renderLongTable();
+    }
+
+    function resetLongStairs() {
+      if (longTimer) {
+        clearInterval(longTimer);
+        longTimer = null;
+      }
+      longStep = 0;
+      longPath = [];
+      updateLongPlayBtnUI(false);
+      document.getElementById('longStatusText').textContent = "Robot preparat a la línia base.";
+      const totalWays = fibonacci(longN);
+      document.getElementById('longFibCount').textContent = `Total camins possibles per N=${longN}: ${totalWays}`;
+      renderLongStairs();
+    }
+
+    function renderLongStairs() {
+      const container = document.getElementById('longStairsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // Posició d'espera inicial (sobre la línia base)
+      const stepZero = document.createElement('div');
+      stepZero.className = 'stair-step step-zero';
+      stepZero.style.height = '0px';
+      if (longStep === 0) {
+        stepZero.innerHTML = `<div class="avatar-robot" style="bottom: 4px; top: auto;">🤖</div>`;
+      }
+      container.appendChild(stepZero);
+
+      for (let i = 1; i <= longN; i++) {
+        const step = document.createElement('div');
+        const heightPercent = 18 + (i / longN) * 67;
+        step.style.height = `${heightPercent}%`;
+
+        let statusClass = '';
+        if (i === longStep) statusClass = 'active';
+        if (i === longN) statusClass += ' target';
+
+        step.className = `stair-step ${statusClass}`;
+        step.innerHTML = `<span class="step-num-badge" style="width: 18px; height: 18px; font-size: 0.65rem;">${i}</span>`;
+
+        if (i === longN) {
+          step.innerHTML += `<span style="font-size:0.85rem;">🚩</span>`;
+        }
+
+        if (i === longStep) {
+          step.innerHTML += `<div class="avatar-robot">🤖</div>`;
+        }
+
+        container.appendChild(step);
+      }
+
+      renderLongSvgArcs();
+    }
+
+    function renderLongSvgArcs() {
+      const svg = document.getElementById('svgLongArcs');
+      if (!svg) return;
+      svg.innerHTML = '';
+      const container = document.getElementById('longStairsContainer');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const wrapperRect = container.parentElement ? container.parentElement.getBoundingClientRect() : null;
+      if (!rect || rect.width === 0 || !wrapperRect) return;
+
+      const totalH = wrapperRect.height;
+      const numCols = longN + 1;
+
+      const getX = (stepIdx) => {
+        const stepW = rect.width / numCols;
+        return (stepIdx + 0.5) * stepW;
+      };
+
+      const getY = (stepIdx) => {
+        if (stepIdx === 0) return totalH - 16;
+        const hPercent = 18 + (stepIdx / longN) * 67;
+        return totalH - 16 - (hPercent / 100 * (rect.height - 16));
+      };
+
+      let accumStep = 0;
+      longPath.forEach((stepVal) => {
+        const fromStep = accumStep;
+        const toStep = accumStep + stepVal;
+        accumStep = toStep;
+
+        const x1 = getX(fromStep);
+        const y1 = getY(fromStep);
+        const x2 = getX(toStep);
+        const y2 = getY(toStep);
+
+        const cx = (x1 + x2) / 2;
+        const cy = Math.max(10, Math.min(y1, y2) - (stepVal === 2 ? 34 : 18));
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`);
+        path.setAttribute("class", `arc-path-past-${stepVal}`);
+        svg.appendChild(path);
+      });
+    }
+
+    function toggleLongAutoPlay() {
+      if (longTimer) {
+        clearInterval(longTimer);
+        longTimer = null;
+        updateLongPlayBtnUI(false);
+        document.getElementById('longStatusText').textContent = "Simulació automatitzada en pausa.";
+        return;
+      }
+
+      const allPaths = getTargetPaths(longN);
+      if (!allPaths || allPaths.length === 0) return;
+
+      updateLongPlayBtnUI(true);
+
+      let pathIndex = 0;
+      let stepIndex = 0;
+      longStep = 0;
+      longPath = [];
+
+      longTimer = setInterval(() => {
+        if (pathIndex >= allPaths.length) {
+          clearInterval(longTimer);
+          longTimer = null;
+          updateLongPlayBtnUI(false);
+          document.getElementById('longStatusText').textContent = `✅ Simulats tots els ${allPaths.length} camins possibles de N=${longN}!`;
+          return;
+        }
+
+        const currentTarget = allPaths[pathIndex];
+        if (stepIndex < currentTarget.length) {
+          const jumpVal = currentTarget[stepIndex];
+          longStep += jumpVal;
+          longPath.push(jumpVal);
+          stepIndex++;
+          renderLongStairs();
+
+          const formattedStr = longPath.map(s => (s === 1 ? '🦶+1' : '🪜+2')).join(' ➔ ');
+          document.getElementById('longStatusText').textContent = `Camí ${pathIndex + 1} de ${allPaths.length}: [ ${formattedStr} ]`;
+        } else {
+          stepIndex = 0;
+          longStep = 0;
+          longPath = [];
+          pathIndex++;
+        }
+      }, longSpeed);
+    }
+
+    function selectLongPath(pathArr) {
+      if (longTimer) {
+        clearInterval(longTimer);
+        longTimer = null;
+        updateLongPlayBtnUI(false);
+      }
+      longPath = [...pathArr];
+      longStep = longN;
+      renderLongStairs();
+      const formattedStr = pathArr.map(s => (s === 1 ? '🦶+1' : '🪜+2')).join(' ➔ ');
+      document.getElementById('longStatusText').textContent = `Camí seleccionat: [ ${formattedStr} ]`;
+    }
+
+    function renderLongPathsList() {
+      const grid = document.getElementById('longPathsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const allPossible = getTargetPaths(longN);
+      const badge = document.getElementById('longPathsBadge');
+      if (badge) badge.textContent = `${allPossible.length} Camins`;
+
+      allPossible.forEach((pathArr, index) => {
+        const card = document.createElement('div');
+        card.className = 'path-card hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer transition';
+        card.onclick = () => selectLongPath(pathArr);
+
+        const badgesHtml = pathArr.map(s => {
+          return s === 1 
+            ? `<span class="badge-jump-1 text-[11px] px-1.5 py-0.5 rounded font-bold">🦶+1</span>` 
+            : `<span class="badge-jump-2 text-[11px] px-1.5 py-0.5 rounded font-bold">🪜+2</span>`;
+        }).join('<span class="text-slate-300 text-[10px] font-bold mx-0.5">➔</span>');
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-700">Camí ${index + 1}:</span>
+            <div class="flex items-center gap-0.5 flex-wrap">${badgesHtml}</div>
+          </div>
+          <span class="text-emerald-600 font-bold text-xs">👁️ Veure</span>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    function renderLongTable() {
+      const tbody = document.getElementById('longRecordTableBody');
+      if (!tbody) return;
+      
+      let html = '<tr class="bg-white border-t border-slate-200 shadow-inner">';
+      html += '<td class="p-3 text-xs sm:text-sm font-extrabold text-emerald-900 bg-emerald-50 border-r border-slate-200 whitespace-nowrap">Total de camins</td>';
+      
+      for (let n = 1; n <= 12; n++) {
+        const total = fibonacci(n);
+        const isSelected = n === longN;
+        const cellBg = isSelected 
+          ? 'bg-amber-100 text-amber-900 border-2 border-amber-400 font-black' 
+          : (n >= 7 ? 'bg-emerald-50/60 text-emerald-800' : 'bg-slate-50 text-slate-700');
+        
+        html += `<td class="p-3 border-r border-slate-200 transition ${cellBg}">
+          <div class="text-base sm:text-lg font-black">${total}</div>
+          ${isSelected ? '<span class="text-[10px] text-amber-700 block font-bold">★ Tria</span>' : ''}
+        </td>`;
+      }
+      html += '</tr>';
+      tbody.innerHTML = html;
+    }
+
+    window.onload = function() {
+      selectN(3);
+      initLongStairs();
+      renderTable();
+      window.addEventListener('resize', () => {
+        renderStairs();
+        renderLongStairs();
+      });
+    };
+  </script>
+</body>
+</html>
