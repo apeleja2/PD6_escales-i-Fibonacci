@@ -346,11 +346,11 @@
               <span>📚 Camins Trobats</span>
             </h2>
             <span id="albumProgressBadge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">
-              0 / 3 Camins
+              0 Camins trobats
             </span>
           </div>
-          <p class="text-xs text-slate-500 mb-4">
-            Descobreix tots els camins possibles fins al darrer esglaó:
+          <p id="albumHintText" class="text-xs text-slate-500 mb-4">
+            Hi ha 13 caselles a l'àlbum. Intenta descobrir quants camins hi ha realment per a aquest esglaó!
           </p>
 
           <!-- LLISTA DE CAMINS -->
@@ -358,8 +358,8 @@
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
-          <span>Total de camins possibles: <strong id="totalPossibleText">3</strong></span>
-          <button onclick="clearNMemory()" class="text-slate-500 hover:text-rose-600 font-semibold underline">Neteja tots els registres de N</button>
+          <span>Explora quants d'aquests 13 camins s'activen per a N = <strong id="displayNFooter">3</strong></span>
+          <button onclick="clearNMemory()" class="text-slate-500 hover:text-rose-600 font-semibold underline">Neteja registres</button>
         </div>
       </section>
 
@@ -707,6 +707,8 @@
         }
       });
       document.getElementById('displayNHeader').textContent = currentN;
+      const footerN = document.getElementById('displayNFooter');
+      if (footerN) footerN.textContent = currentN;
       document.getElementById('stepCounterBadge').textContent = `Esglaó: ${currentStep} / ${currentN}`;
     }
 
@@ -880,6 +882,46 @@
       }
     }
 
+    function clearNMemory() {
+      userPaths[currentN] = [];
+      activeSolutions = {};
+      renderAlbumGrid();
+      renderTable();
+      renderSvgArcs();
+      updateStatusBox(`Registres esborrats per a N = ${currentN}.`, "neutral");
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('recordTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      for (let n = 1; n <= 6; n++) {
+        const tr = document.createElement('tr');
+        const isCurrent = (n === currentN);
+        tr.className = isCurrent ? 'bg-emerald-50/80 font-bold' : 'hover:bg-slate-50';
+
+        const saved = userPaths[n] || [];
+
+        const pathsStr = saved.length > 0 
+          ? saved.map(p => p.join(' + ')).join(', ') 
+          : '<span class="text-slate-400 italic font-normal">Cap camí trobat encara</span>';
+
+        tr.innerHTML = `
+          <td class="px-4 py-3 text-center border-r border-slate-200">
+            <span class="inline-block px-2.5 py-0.5 rounded-full ${isCurrent ? 'bg-emerald-600 text-white font-extrabold' : 'bg-slate-100 text-slate-700 font-bold'}">N = ${n}</span>
+          </td>
+          <td class="px-4 py-3 border-r border-slate-200 text-xs sm:text-sm">
+            ${pathsStr}
+          </td>
+          <td class="px-4 py-3 text-center font-bold">
+            <span class="text-emerald-700 font-black text-base">${saved.length}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
     function revealSolution(index) {
       activeSolutions[index] = true;
       renderAlbumGrid();
@@ -893,102 +935,82 @@
       const saved = userPaths[currentN] || [];
       const savedStrings = new Set(saved.map(p => p.join(',')));
 
-      document.getElementById('albumProgressBadge').textContent = `${saved.length} / ${allPossible.length} Camins`;
-      document.getElementById('totalPossibleText').textContent = allPossible.length;
+      // Sempre mostrem 13 caselles
+      const TOTAL_SLOTS = 13;
 
-      allPossible.forEach((pathArr, index) => {
-        const pathKey = pathArr.join(',');
-        const isUnlocked = savedStrings.has(pathKey);
+      document.getElementById('albumProgressBadge').textContent = `${saved.length} Camins trobats`;
+
+      for (let index = 0; index < TOTAL_SLOTS; index++) {
+        const isRealSlot = index < allPossible.length;
         const isSolutionRevealed = !!activeSolutions[index];
 
         const card = document.createElement('div');
-        card.className = `path-card ${isUnlocked ? 'unlocked' : (isSolutionRevealed ? 'border-amber-300 bg-amber-50' : '')}`;
 
-        const badgesHtml = pathArr.map(s => {
-          return s === 1 
-            ? `<span class="badge-jump-1 text-xs px-2 py-0.5 rounded-md font-bold">🦶 +1</span>` 
-            : `<span class="badge-jump-2 text-xs px-2 py-0.5 rounded-md font-bold">🪜 +2</span>`;
-        }).join('<span class="text-slate-300 text-xs font-bold mx-0.5">➔</span>');
+        if (isRealSlot) {
+          const pathArr = allPossible[index];
+          const pathKey = pathArr.join(',');
+          const isUnlocked = savedStrings.has(pathKey);
 
-        if (isUnlocked) {
-          card.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-emerald-700">Camí ${index + 1}</span>
-              <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
-            </div>
-            <span class="text-emerald-600 font-bold text-xs">✓ Trobat</span>
-          `;
-        } else if (isSolutionRevealed) {
-          card.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-amber-700">Camí ${index + 1}</span>
-              <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
-            </div>
-            <span class="text-amber-600 font-bold text-xs">💡 Solució</span>
-          `;
+          card.className = `path-card ${isUnlocked ? 'unlocked' : (isSolutionRevealed ? 'border-amber-300 bg-amber-50' : '')}`;
+
+          const badgesHtml = pathArr.map(s => {
+            return s === 1 
+              ? `<span class="badge-jump-1 text-xs px-2 py-0.5 rounded-md font-bold">🦶 +1</span>` 
+              : `<span class="badge-jump-2 text-xs px-2 py-0.5 rounded-md font-bold">🪜 +2</span>`;
+          }).join('<span class="text-slate-300 text-xs font-bold mx-0.5">➔</span>');
+
+          if (isUnlocked) {
+            card.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-emerald-700">Casella ${index + 1}</span>
+                <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
+              </div>
+              <span class="text-emerald-600 font-bold text-xs">✓ Trobat</span>
+            `;
+          } else if (isSolutionRevealed) {
+            card.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-amber-700">Casella ${index + 1}</span>
+                <div class="flex items-center gap-1 flex-wrap">${badgesHtml}</div>
+              </div>
+              <span class="text-amber-600 font-bold text-xs">💡 Solució</span>
+            `;
+          } else {
+            card.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400">Casella ${index + 1}</span>
+                <span class="text-xs font-medium text-slate-400 italic">🔒 Camí per descobrir</span>
+              </div>
+              <button onclick="revealSolution(${index})" class="text-[11px] text-amber-700 hover:text-amber-900 font-bold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 transition">
+                👁️ Solució
+              </button>
+            `;
+          }
         } else {
-          card.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-400">Camí ${index + 1}</span>
-              <span class="text-xs font-medium text-slate-400 italic">🔒 Camí per descobrir</span>
-            </div>
-            <button onclick="revealSolution(${index})" class="text-[11px] text-amber-700 hover:text-amber-900 font-bold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 transition">
-              👁️ Solució
-            </button>
-          `;
+          // Casella quan no hi ha més camins
+          if (isSolutionRevealed) {
+            card.className = "path-card border-rose-200 bg-rose-50/70 opacity-90";
+            card.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-rose-700">Casella ${index + 1}</span>
+                <span class="text-xs font-bold text-rose-700">❌ No n'hi ha més!</span>
+              </div>
+            `;
+          } else {
+            card.className = "path-card border-slate-200 bg-slate-50/60";
+            card.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400">Casella ${index + 1}</span>
+                <span class="text-xs font-medium text-slate-400 italic">🔒 Camí per descobrir</span>
+              </div>
+              <button onclick="revealSolution(${index})" class="text-[11px] text-amber-700 hover:text-amber-900 font-bold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 transition">
+                👁️ Solució
+              </button>
+            `;
+          }
         }
 
         grid.appendChild(card);
-      });
-    }
-
-    function clearNMemory() {
-      userPaths[currentN] = [];
-      activeSolutions = {};
-      renderAlbumGrid();
-      renderTable();
-      renderSvgArcs();
-      updateStatusBox(`Memòria i traces de N=${currentN} netejades.`, "neutral");
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('recordTableBody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      for (let n = 1; n <= 6; n++) {
-        const allPossible = getTargetPaths(n);
-        const saved = userPaths[n] || [];
-
-        const tr = document.createElement('tr');
-        if (n === currentN) {
-          tr.className = 'bg-emerald-50/70 font-semibold';
-        } else {
-          tr.className = 'hover:bg-slate-50';
-        }
-
-        let pathsFormatted = '';
-        if (saved.length === 0) {
-          pathsFormatted = '<span class="text-slate-400 italic text-xs">Cap camí descobert encara</span>';
-        } else {
-          pathsFormatted = saved.map(p => {
-            return `<span class="inline-block bg-white border border-slate-300 text-slate-800 rounded px-2 py-0.5 text-xs font-mono font-bold mr-1.5 mb-1 shadow-sm">${p.map(s => s === 1 ? '1' : '2').join(' + ')}</span>`;
-          }).join('');
-        }
-
-        const isComplete = saved.length === allPossible.length;
-        const totalBadge = isComplete 
-          ? `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-300">${saved.length} / ${allPossible.length} ✓</span>`
-          : `<span class="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full border border-slate-200">${saved.length} / ${allPossible.length}</span>`;
-
-        tr.innerHTML = `
-          <td class="px-4 py-3 text-center font-bold text-slate-800 border-r border-slate-200">
-            N = ${n} ${n === currentN ? '<span class="text-xs text-emerald-600 font-extrabold block">(Actual)</span>' : ''}
-          </td>
-          <td class="px-4 py-3 border-r border-slate-200">${pathsFormatted}</td>
-          <td class="px-4 py-3 text-center">${totalBadge}</td>
-        `;
-        tbody.appendChild(tr);
       }
     }
 
